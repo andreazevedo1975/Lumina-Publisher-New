@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Toolbar } from './components/Toolbar';
 import { Sidebar } from './components/Sidebar';
 import { PropertyPanel } from './components/PropertyPanel';
 import { Canvas } from './components/Canvas';
 import { ImportModal } from './components/ImportModal';
-import { AppState, Unit, ElementType, Page, Asset, TypographyStyle } from './types';
+import { AppState, Unit, ElementType, Page, Asset, TypographyStyle, ParagraphStyle } from './types';
 import { analyzeManuscript } from './services/geminiService';
 
 const INITIAL_PAGE_WIDTH = 595; // A4 approx width in pt
@@ -30,6 +31,28 @@ const App: React.FC = () => {
       assets: [
          { id: '1', name: 'capa.jpg', type: 'image', url: 'https://picsum.photos/400/600', size: '1.2MB', dimensions: '1200x1800', usedCount: 1 },
          { id: '2', name: 'grafico.png', type: 'image', url: 'https://picsum.photos/300/300', size: '450KB', dimensions: '800x800', usedCount: 0 }
+      ],
+      paragraphStyles: [
+        {
+            id: 'style-body',
+            name: 'Corpo de Texto',
+            style: { fontFamily: 'Merriweather', fontSize: 11, lineHeight: 1.5, textAlign: 'justify', color: '#27272a' }
+        },
+        {
+            id: 'style-h1',
+            name: 'Título H1',
+            style: { fontFamily: 'Merriweather', fontSize: 24, fontWeight: 700, lineHeight: 1.2, textAlign: 'left', color: '#0ea5e9' }
+        },
+        {
+            id: 'style-quote',
+            name: 'Citação',
+            style: { fontFamily: 'Merriweather', fontSize: 12, fontStyle: 'italic', color: '#52525b', paddingLeft: 20 }
+        }
+      ],
+      swatches: [
+        '#000000', '#FFFFFF', '#27272A', '#52525B', // Grayscale
+        '#0EA5E9', '#EF4444', '#10B981', '#F59E0B', // Standard Accents
+        '#F4F4F5', '#18181B' // Backgrounds
       ],
       pages: [
         {
@@ -178,6 +201,68 @@ const App: React.FC = () => {
       });
   };
 
+  const handleAddParagraphStyle = () => {
+      const activeElementId = state.ui.selectedElementIds[0];
+      const page = state.project.pages.find(p => p.id === state.ui.activePageId);
+      const element = page?.elements.find(e => e.id === activeElementId);
+
+      if (element && element.type === ElementType.TEXT_BLOCK) {
+          const name = prompt("Nome do novo Estilo de Parágrafo:", "Novo Estilo");
+          if (name) {
+              const newStyle: ParagraphStyle = {
+                  id: `style-${Date.now()}`,
+                  name,
+                  style: { ...element.style } // Copy current style
+              };
+              setState(prev => ({
+                  ...prev,
+                  project: {
+                      ...prev.project,
+                      paragraphStyles: [...prev.project.paragraphStyles, newStyle]
+                  }
+              }));
+          }
+      } else {
+          alert("Selecione um texto para criar um estilo baseado nele.");
+      }
+  };
+
+  const handleApplyParagraphStyle = (styleId: string) => {
+      const styleToApply = state.project.paragraphStyles.find(s => s.id === styleId);
+      if (styleToApply) {
+          handleStyleUpdate(styleToApply.style);
+      }
+  };
+
+  const handleRemoveParagraphStyle = (styleId: string) => {
+      if (confirm("Remover este estilo?")) {
+          setState(prev => ({
+              ...prev,
+              project: {
+                  ...prev.project,
+                  paragraphStyles: prev.project.paragraphStyles.filter(s => s.id !== styleId)
+              }
+          }));
+      }
+  };
+
+  // --- Swatch Management ---
+  const handleAddSwatch = (color: string) => {
+      if (!state.project.swatches.includes(color)) {
+          setState(prev => ({
+              ...prev,
+              project: { ...prev.project, swatches: [...prev.project.swatches, color] }
+          }));
+      }
+  };
+
+  const handleRemoveSwatch = (color: string) => {
+      setState(prev => ({
+          ...prev,
+          project: { ...prev.project, swatches: prev.project.swatches.filter(c => c !== color) }
+      }));
+  };
+
   const handleAddPage = () => {
       const newPage: Page = {
           id: `page-${Date.now()}`,
@@ -310,6 +395,11 @@ const App: React.FC = () => {
         <PropertyPanel 
             state={state} 
             onUpdateStyle={handleStyleUpdate}
+            onApplyParagraphStyle={handleApplyParagraphStyle}
+            onAddParagraphStyle={handleAddParagraphStyle}
+            onRemoveParagraphStyle={handleRemoveParagraphStyle}
+            onAddSwatch={handleAddSwatch}
+            onRemoveSwatch={handleRemoveSwatch}
         />
       </div>
 

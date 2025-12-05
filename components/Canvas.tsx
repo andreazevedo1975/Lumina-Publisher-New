@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-import { UploadCloud, Link as LinkIcon, Check } from 'lucide-react';
+import { UploadCloud, Link as LinkIcon, Check, X } from 'lucide-react';
 import { AppState, ElementType, Page, PageElement } from '../types';
 
 interface CanvasProps {
@@ -91,10 +91,20 @@ const ElementRenderer: React.FC<{
     const [tempUrl, setTempUrl] = useState('');
 
     useEffect(() => {
+        // Handle TEXT editing start
         if (isEditing && contentRef.current && element.type === ElementType.TEXT_BLOCK) {
+            // Manually populate content when starting edit to avoid React syncing issues with contentEditable
+            if (contentRef.current.innerHTML !== element.content) {
+                 contentRef.current.innerHTML = element.content;
+            }
             contentRef.current.focus();
         }
-    }, [isEditing, element.type]);
+        
+        // Handle IMAGE editing start
+        if (isEditing && element.type === ElementType.IMAGE) {
+            setTempUrl(element.content);
+        }
+    }, [isEditing, element.type, element.content]);
 
     const style: React.CSSProperties = {
         position: 'absolute',
@@ -103,6 +113,7 @@ const ElementRenderer: React.FC<{
         width: `${element.box.width * scale}px`,
         height: `${element.box.height * scale}px`,
         transform: `rotate(${element.box.rotation}deg)`,
+        // Edit mode gets a distinct dashed border, Selection gets solid blue
         border: isEditing ? '2px dashed #10b981' : isSelected ? '2px solid #0ea5e9' : '1px solid transparent',
         cursor: isEditing ? 'text' : 'move',
         zIndex: isEditing ? 100 : element.zIndex
@@ -130,7 +141,7 @@ const ElementRenderer: React.FC<{
                 style={style} 
                 onClick={(e) => { e.stopPropagation(); onSelect(); }}
                 onDoubleClick={handleDoubleClick}
-                className="group hover:border-cyan-300/50"
+                className="group hover:border-cyan-300/30"
             >
                 <div 
                     ref={contentRef}
@@ -142,7 +153,9 @@ const ElementRenderer: React.FC<{
                         color: element.style.color,
                         textAlign: element.style.textAlign,
                         fontStyle: element.style.fontStyle || 'normal',
+                        fontWeight: element.style.fontWeight || 400,
                         letterSpacing: `${(element.style.letterSpacing || 0) * scale}px`,
+                        // Padding acts as internal margins/inset
                         paddingTop: `${4 * scale}px`,
                         paddingRight: `${4 * scale}px`,
                         paddingBottom: `${4 * scale}px`,
@@ -151,11 +164,17 @@ const ElementRenderer: React.FC<{
                     }}
                     contentEditable={isEditing}
                     suppressContentEditableWarning={true}
+                    onKeyDown={(e) => {
+                        // Stop propagation so delete/backspace doesn't delete the element itself in the App
+                        e.stopPropagation();
+                    }}
                     onBlur={(e) => {
                         onUpdateContent(e.currentTarget.innerHTML);
                         onStopEditing();
                     }}
-                    dangerouslySetInnerHTML={{ __html: element.content }}
+                    // If we are NOT editing, we rely on dangerouslySetInnerHTML to render standard HTML.
+                    // If we ARE editing, we leave it undefined so we can manage it manually via Ref/ContentEditable
+                    dangerouslySetInnerHTML={!isEditing ? { __html: element.content } : undefined}
                 />
                 
                 {isSelected && !isEditing && (
@@ -194,32 +213,49 @@ const ElementRenderer: React.FC<{
                 )}
 
                 {isEditing && (
-                    <div className="absolute top-full left-0 mt-2 bg-app-panel border border-app-border rounded-lg shadow-xl p-3 w-64 z-50 animate-in slide-in-from-top-2">
-                        <h4 className="text-xs text-app-muted font-bold uppercase mb-2">Editar Imagem</h4>
-                        <div className="flex flex-col gap-2">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-app-panel border border-app-border rounded-lg shadow-xl p-3 w-72 z-[9999] animate-in slide-in-from-top-2">
+                         <div className="flex justify-between items-center mb-2">
+                             <h4 className="text-xs text-white font-bold uppercase">Editar Imagem</h4>
+                             <button onClick={(e) => { e.stopPropagation(); onStopEditing(); }} className="text-app-muted hover:text-white"><X size={14} /></button>
+                         </div>
+                        
+                        <div className="flex flex-col gap-3">
                             <div className="flex gap-2">
-                                <input 
-                                    type="text" 
-                                    placeholder="Colar URL..." 
-                                    className="flex-1 bg-app-bg border border-app-border rounded px-2 py-1 text-xs text-white focus:border-app-accent focus:outline-none"
-                                    value={tempUrl}
-                                    onChange={(e) => setTempUrl(e.target.value)}
-                                />
+                                <div className="flex-1 relative">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Cole uma URL..." 
+                                        className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs text-white focus:border-app-accent focus:outline-none pr-6"
+                                        value={tempUrl}
+                                        onChange={(e) => setTempUrl(e.target.value)}
+                                        onKeyDown={(e) => e.stopPropagation()}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                    <LinkIcon size={10} className="absolute right-2 top-2 text-app-muted" />
+                                </div>
                                 <button 
-                                    onClick={() => { if(tempUrl) { onUpdateContent(tempUrl); onStopEditing(); } }}
-                                    className="p-1 bg-app-accent rounded text-white hover:bg-sky-600"
+                                    onClick={(e) => { e.stopPropagation(); if(tempUrl) { onUpdateContent(tempUrl); onStopEditing(); } }}
+                                    className="px-2 bg-app-accent rounded text-white hover:bg-sky-600 flex items-center justify-center"
+                                    title="Aplicar URL"
                                 >
                                     <Check size={14} />
                                 </button>
                             </div>
-                            <div className="text-[10px] text-center text-app-muted">- ou -</div>
-                            <label className="flex items-center justify-center gap-2 w-full p-2 bg-app-bg border border-dashed border-app-border rounded cursor-pointer hover:border-app-accent hover:text-app-accent transition-colors">
-                                <UploadCloud size={14} />
-                                <span className="text-xs">Upload do Computador</span>
+                            
+                            <div className="flex items-center gap-2">
+                                <div className="h-px bg-app-border flex-1"></div>
+                                <span className="text-[10px] text-app-muted uppercase">ou</span>
+                                <div className="h-px bg-app-border flex-1"></div>
+                            </div>
+
+                            <label className="flex items-center justify-center gap-2 w-full py-2 bg-app-bg border border-dashed border-app-border rounded cursor-pointer hover:border-app-accent hover:text-app-accent hover:bg-app-accent/5 transition-all group/upload">
+                                <UploadCloud size={14} className="text-app-muted group-hover/upload:text-app-accent" />
+                                <span className="text-xs font-medium">Upload Local</span>
                                 <input 
                                     type="file" 
                                     className="hidden" 
                                     accept="image/*"
+                                    onClick={(e) => e.stopPropagation()}
                                     onChange={(e) => {
                                         if (e.target.files?.[0]) {
                                             const url = URL.createObjectURL(e.target.files[0]);
@@ -229,12 +265,6 @@ const ElementRenderer: React.FC<{
                                     }}
                                 />
                             </label>
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); onStopEditing(); }}
-                                className="text-xs text-app-muted hover:text-white mt-1"
-                            >
-                                Cancelar
-                            </button>
                         </div>
                     </div>
                 )}

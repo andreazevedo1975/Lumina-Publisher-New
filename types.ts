@@ -37,6 +37,12 @@ export interface TypographyStyle {
   paddingLeft: number; // Indentation
 }
 
+export interface ParagraphStyle {
+    id: string;
+    name: string;
+    style: Partial<TypographyStyle>;
+}
+
 export interface PageElement {
   id: string;
   type: ElementType;
@@ -80,6 +86,8 @@ export interface AppState {
     settings: ProjectSettings;
     pages: Page[];
     assets: Asset[];
+    paragraphStyles: ParagraphStyle[];
+    swatches: string[]; // Paleta de cores global
   };
   ui: {
     zoom: number;

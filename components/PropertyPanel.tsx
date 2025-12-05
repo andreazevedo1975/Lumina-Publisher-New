@@ -1,14 +1,63 @@
 
 import React from 'react';
-import { AlignLeft, AlignCenter, AlignRight, AlignJustify, Type, Ruler, Move, Grid, Quote, Heading, CaseUpper } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, AlignJustify, Type, Ruler, Move, Grid, Quote, Heading, Plus, Trash2, X, Palette } from 'lucide-react';
 import { AppState, ElementType, TypographyStyle } from '../types';
 
 interface PropertyPanelProps {
   state: AppState;
   onUpdateStyle: (style: Partial<TypographyStyle>) => void;
+  onApplyParagraphStyle?: (id: string) => void;
+  onAddParagraphStyle?: () => void;
+  onRemoveParagraphStyle?: (id: string) => void;
+  onAddSwatch?: (color: string) => void;
+  onRemoveSwatch?: (color: string) => void;
 }
 
-export const PropertyPanel: React.FC<PropertyPanelProps> = ({ state, onUpdateStyle }) => {
+// Lista categorizada de fontes disponíveis
+const FONT_OPTIONS = [
+  {
+    category: "Serif (Clássico/Editorial)",
+    fonts: [
+      "Merriweather", "Libre Baskerville", "EB Garamond", "Playfair Display", 
+      "Lora", "PT Serif", "Crimson Text", "Noto Serif", "Source Serif 4", 
+      "Vollkorn", "Alegreya", "Frank Ruhl Libre", "Cardo", "Domine", 
+      "Old Standard TT", "Spectral", "Zilla Slab", "Arvo", "Bitter", "Roboto Slab", "Prata", "Nanum Myeongjo", "Bodoni Moda"
+    ]
+  },
+  {
+    category: "Sans Serif (Moderno/Interface)",
+    fonts: [
+      "Inter", "Roboto", "Open Sans", "Lato", "Montserrat", "Poppins", 
+      "Raleway", "Nunito", "Work Sans", "Fira Sans", "Quicksand", 
+      "Rubik", "Outfit", "Manrope", "DM Sans", "Mulish", "PT Sans", 
+      "Karla", "Josefin Sans", "Ubuntu", "Titillium Web", "Heebo", "Source Sans 3", "Libre Franklin"
+    ]
+  },
+  {
+    category: "Display & Criativo",
+    fonts: [
+      "Oswald", "Bebas Neue", "Anton", "Abril Fatface", "Lobster", 
+      "Dancing Script", "Pacifico", "Great Vibes", "Cinzel", 
+      "Syne", "Space Grotesk", "Exo 2", "Archivo"
+    ]
+  },
+  {
+    category: "Monospace (Técnico)",
+    fonts: [
+      "Roboto Mono", "Fira Code", "Source Code Pro", "Inconsolata", "IBM Plex Mono"
+    ]
+  }
+];
+
+export const PropertyPanel: React.FC<PropertyPanelProps> = ({ 
+    state, 
+    onUpdateStyle, 
+    onApplyParagraphStyle, 
+    onAddParagraphStyle, 
+    onRemoveParagraphStyle,
+    onAddSwatch,
+    onRemoveSwatch
+}) => {
   const selectedElements = state.ui.selectedElementIds.map(id => {
       // Find element in active page
       const page = state.project.pages.find(p => p.id === state.ui.activePageId);
@@ -52,41 +101,32 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({ state, onUpdateSty
 
        {primarySelection.type === ElementType.TEXT_BLOCK && (
            <>
-            {/* Quick Styles / Presets */}
+            {/* Paragraph Styles Manager */}
             <div className="p-4 border-b border-app-border space-y-3">
-                 <span className="text-xs font-medium text-app-muted">Estilos Rápidos</span>
-                 <div className="grid grid-cols-3 gap-2">
-                     <button 
-                        onClick={() => onUpdateStyle({ fontFamily: 'Inter', fontSize: 11, color: '#27272a', fontStyle: 'normal', paddingLeft: 0, fontWeight: 400 })}
-                        className="flex flex-col items-center gap-1 p-2 bg-app-bg border border-app-border rounded hover:border-app-accent hover:text-app-accent transition-colors"
-                        title="Corpo de Texto Padrão"
-                     >
-                         <AlignLeft size={16} />
-                         <span className="text-[10px]">Corpo</span>
-                     </button>
-                     <button 
-                        onClick={() => onUpdateStyle({ fontFamily: 'Merriweather', fontSize: 24, color: '#0ea5e9', fontStyle: 'normal', paddingLeft: 0, fontWeight: 700 })}
-                        className="flex flex-col items-center gap-1 p-2 bg-app-bg border border-app-border rounded hover:border-app-accent hover:text-app-accent transition-colors"
-                        title="Título H1"
-                     >
-                         <Heading size={16} />
-                         <span className="text-[10px]">Título</span>
-                     </button>
-                     <button 
-                        onClick={() => onUpdateStyle({ 
-                            fontFamily: 'Merriweather', 
-                            fontSize: 14, 
-                            color: '#52525b', 
-                            paddingLeft: 24, 
-                            fontStyle: 'italic',
-                            fontWeight: 400
-                        })}
-                        className="flex flex-col items-center gap-1 p-2 bg-app-bg border border-app-border rounded hover:border-app-accent hover:text-app-accent transition-colors"
-                        title="Estilo de Citação"
-                     >
-                         <Quote size={16} />
-                         <span className="text-[10px]">Citação</span>
-                     </button>
+                 <div className="flex justify-between items-center">
+                    <span className="text-xs font-medium text-app-muted">Estilos de Parágrafo</span>
+                    <button onClick={onAddParagraphStyle} className="p-1 hover:bg-app-bg rounded text-app-accent" title="Criar Estilo">
+                        <Plus size={14} />
+                    </button>
+                 </div>
+                 <div className="space-y-1">
+                     {state.project.paragraphStyles.map(pStyle => (
+                         <div key={pStyle.id} className="group flex items-center justify-between p-2 rounded hover:bg-app-bg cursor-pointer">
+                             <span 
+                                className="text-sm truncate max-w-[150px]"
+                                onClick={() => onApplyParagraphStyle?.(pStyle.id)}
+                             >{pStyle.name}</span>
+                             <button 
+                                onClick={() => onRemoveParagraphStyle?.(pStyle.id)}
+                                className="opacity-0 group-hover:opacity-100 text-app-muted hover:text-red-400"
+                             >
+                                 <Trash2 size={12} />
+                             </button>
+                         </div>
+                     ))}
+                     {state.project.paragraphStyles.length === 0 && (
+                         <p className="text-[10px] text-app-muted italic">Nenhum estilo salvo.</p>
+                     )}
                  </div>
             </div>
 
@@ -99,12 +139,17 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({ state, onUpdateSty
                     value={primarySelection.style.fontFamily || 'Inter'}
                     onChange={(e) => onUpdateStyle({ fontFamily: e.target.value })}
                     className="w-full bg-app-bg border border-app-border rounded px-2 py-1 text-sm text-app-text focus:border-app-accent focus:outline-none"
+                    style={{ fontFamily: primarySelection.style.fontFamily }}
                 >
-                    <option value="Merriweather">Merriweather (Serif)</option>
-                    <option value="Inter">Inter (Sans)</option>
-                    <option value="Roboto Mono">Roboto Mono (Mono)</option>
-                    <option value="Garamond">Garamond (Serif)</option>
-                    <option value="Arial">Arial (Sans)</option>
+                    {FONT_OPTIONS.map((group) => (
+                      <optgroup key={group.category} label={group.category} className="bg-app-panel text-app-muted">
+                        {group.fonts.map((font) => (
+                          <option key={font} value={font} style={{ fontFamily: font }} className="bg-app-bg text-app-text">
+                            {font}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
                 </select>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -143,19 +188,70 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({ state, onUpdateSty
                         <label className="text-[10px] text-app-muted uppercase mb-1 block">Tracking</label>
                         <input type="number" defaultValue={primarySelection.style.letterSpacing} className="w-full bg-app-bg border border-app-border rounded px-2 py-1 text-sm focus:border-app-accent focus:outline-none" />
                      </div>
-                     <div>
-                        <label className="text-[10px] text-app-muted uppercase mb-1 block">Cor</label>
-                         <div className="flex items-center gap-2">
+                </div>
+                
+                {/* Advanced Color Picker with Swatches */}
+                <div className="pt-2">
+                     <label className="text-[10px] text-app-muted uppercase mb-2 flex items-center justify-between">
+                        <span>Cor e Paleta</span>
+                        <Palette size={10} />
+                     </label>
+                     
+                     <div className="flex gap-2 mb-3">
+                        <div className="w-10 h-10 rounded border border-app-border relative overflow-hidden shrink-0">
                             <input 
                                 type="color" 
                                 value={primarySelection.style.color || '#000000'}
                                 onChange={(e) => onUpdateStyle({ color: e.target.value })}
-                                className="w-6 h-6 rounded bg-transparent border-0 p-0 cursor-pointer"
+                                className="absolute inset-0 w-[150%] h-[150%] -top-1/4 -left-1/4 cursor-pointer p-0 border-0"
                             />
-                            <span className="text-xs font-mono text-app-muted uppercase">{primarySelection.style.color}</span>
-                         </div>
+                        </div>
+                        <div className="flex-1">
+                             <div className="flex items-center gap-1">
+                                <span className="text-app-muted text-xs">#</span>
+                                <input 
+                                    type="text" 
+                                    value={(primarySelection.style.color || '').replace('#', '').toUpperCase()}
+                                    onChange={(e) => {
+                                        const val = '#' + e.target.value;
+                                        if (/^#[0-9A-F]{6}$/i.test(val) || /^#[0-9A-F]{3}$/i.test(val)) {
+                                            onUpdateStyle({ color: val });
+                                        }
+                                    }}
+                                    className="w-full bg-app-bg border border-app-border rounded px-2 py-1 text-xs uppercase focus:border-app-accent focus:outline-none"
+                                    placeholder="000000"
+                                    maxLength={6}
+                                />
+                             </div>
+                             <button 
+                                onClick={() => onAddSwatch && primarySelection.style.color && onAddSwatch(primarySelection.style.color)}
+                                className="w-full mt-1.5 flex items-center justify-center gap-1 bg-app-bg border border-app-border rounded py-1 text-[10px] hover:bg-app-panel hover:text-white transition-colors"
+                             >
+                                 <Plus size={10} /> Salvar na Paleta
+                             </button>
+                        </div>
+                     </div>
+
+                     <div className="grid grid-cols-6 gap-1.5">
+                        {state.project.swatches?.map((color, idx) => (
+                            <div 
+                                key={`${color}-${idx}`} 
+                                className="group relative w-6 h-6 rounded-sm cursor-pointer border border-transparent hover:border-white hover:scale-110 transition-all shadow-sm"
+                                style={{ backgroundColor: color }}
+                                onClick={() => onUpdateStyle({ color: color })}
+                                title={color}
+                            >
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); onRemoveSwatch && onRemoveSwatch(color); }}
+                                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-3 h-3 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <X size={8} />
+                                </button>
+                            </div>
+                        ))}
                      </div>
                 </div>
+
             </div>
 
             {/* Paragraph Section */}
